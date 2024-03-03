@@ -10,40 +10,39 @@ import os
 import json
 import requests
 from datetime import datetime, timedelta
-# from pymongo import Client
-# from twilio.rest import Client
-# from pushsafer import init, Client
-# from tzlocal import get_localzone
-# from google.auth.transport.requests import Request
-# from googleapiclient.discovery import build
-# from google.oauth2 import service_account
-# from google.oauth2.credentials import Credentials
-# from google_auth_oauthlib.flow import InstalledAppFlow
-# from googleapiclient.errors import HttpError
-# from apscheduler.triggers.cron import CronTrigger
+from pymongo import Client
+from twilio.rest import Client
+from pushsafer import init, Client
+from tzlocal import get_localzone
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.errors import HttpError
+from apscheduler.triggers.cron import CronTrigger
 
 PORT = 5000
 
-# SCOPES = ['https://www.googleapis.com/auth/calendar']
-# flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", scopes = SCOPES)
-# credentials = service_account.Credentials.from_service_account_file(
-#     '/Users/arnavdixit/Downloads/client_secret.json', 
-#     scopes=SCOPES
-# )
-# service = build('calendar', 'v3', credentials=credentials)
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", scopes = SCOPES)
+credentials = service_account.Credentials.from_service_account_file(
+    '/Users/arnavdixit/Downloads/client_secret.json', 
+    scopes=SCOPES
+)
+service = build('calendar', 'v3', credentials=credentials)
 
+TWILIO_ACCOUNT_SID = '#SID'
+TWILIO_AUTH_TOKEN = 'AUTH TOKEN'
+TWILIO_PHONE_NUMBER = 'PHONE_NUM'
 
-# TWILIO_ACCOUNT_SID = 'ACa95f3a73160d71425c247d041981d25b'
-# TWILIO_AUTH_TOKEN = '1abd0d1daef830e7aa4b237c51cff947'
-# TWILIO_PHONE_NUMBER = '+18556091264'
-
-# twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # app config
 app = Flask(__name__, static_url_path='', static_folder='static')
 
 app.secret_key = os.urandom(24)
-app.config['MONGO_URI'] = 'mongodb://localhost:27017/app.user_info' 
+app.config['MONGO_URI'] = #mongodb database 
 bcrypt = Bcrypt(app)
 mongo = PyMongo(app)
 
@@ -147,17 +146,17 @@ def sign_up_page_render():
     return jsonify({"success": True}), 200
     #return redirect('/')
 
-# # @app.route('/post_meds', methods=['GET'])
-# # def med_list():
-# #     if g.user is None:
-# #         return redirect('/index')
-# #     user = mongo.db.users.find_one({"uname": g.user})
+@app.route('/post_meds', methods=['GET'])
+def med_list():
+    if g.user is None:
+        return redirect('/index')
+    user = mongo.db.users.find_one({"uname": g.user})
 
-# #     if user:
-# #         prescriptions = user.get_data("meds", [])
-# #         return render_template("add_med.html", usr=g.user, prescriptions=prescriptions)
+    if user:
+        prescriptions = user.get_data("meds", [])
+        return render_template("add_med.html", usr=g.user, prescriptions=prescriptions)
     
-# #     return redirect("/index?err_msg=email used")
+    return redirect("/index?err_msg=email used")
               
 @app.route('/add_med', methods=['POST'])
 def add_med():
@@ -230,124 +229,109 @@ def remove_med(med_name):
         if m.get('name') == med_name:
             user_meds.remove(m)
             mongo.db.users.update_one({"_id": user["_id"]}, {"$set": {"meds": user_meds}}) #update mongoDb
-            return redirect("/index?success_msg=med_remove_success")
-
- 
-# @app.route('/user_meds', methods=['GET'])
-# def get_user_meds():
-#     if g.user is None:
-#         return jsonify({"error": "User not logged in"}) 
-#     user = users_collection.find_one({"uname": g.user})
-
-#     if user:
-#         user_meds = user.get("meds", [])
-#         return jsonify(user_meds)
-    
-#     return jsonify({"error": "User not found"}) 
+            return redirect("/index?success_msg=med_remove_success") 
      
 
-# @app.route('calendar_view', methods=['POST'])
-# def cal_view(): #possibly delete
-#     if g.user is None:
-#         return jsonify({"error": "User not logged in"})
+@app.route('calendar_view', methods=['POST'])
+def cal_view(): #possibly delete
+    if g.user is None:
+        return jsonify({"error": "User not logged in"})
     
-#     user = users_collection.find_one({"uname": g.user})
-#     user_meds = user.get("meds", [])
-#     #loop this
-#     for m in user_meds:
-#         add_to_cal(m);
+    user = users_collection.find_one({"uname": g.user})
+    user_meds = user.get("meds", [])
+    #loop this
+    for m in user_meds:
+        add_to_cal(m);
 
 
-# @app.route('/calendar_view', methods=['POST']) #might not need route
-# def add_to_cal(med, user): #called whenevere a new med is added
-#     start_dt = f"{datetime.now().date()} {med.get('start')}"
+@app.route('/calendar_view', methods=['POST']) #might not need route
+def add_to_cal(med, user): #called whenevere a new med is added
+    start_dt = f"{datetime.now().date()} {med.get('start')}"
 
-#     start_t = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
+    start_t = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
 
-#     formatted_days = [day.capitalize()[:2] for day in med.get("days")]
+    formatted_days = [day.capitalize()[:2] for day in med.get("days")]
     
-#     for i  in range(med.get("count_doses")):
-#         start_time = start_t + timedelta(hours = i*med.get("hours"))
-#         #start_time = start_dt + timedelta(hours=i * med["hours"])
+    for i  in range(med.get("count_doses")):
+        start_time = start_t + timedelta(hours = i*med.get("hours"))
+        #start_time = start_dt + timedelta(hours=i * med["hours"])
 
-#         end_time = start_time + timedelta(minutes=20)
+        end_time = start_time + timedelta(minutes=20)
 
-#         st = start_time.isoformat() + 'Z'
-#         et = end_time.isoformat() + 'Z'
+        st = start_time.isoformat() + 'Z'
+        et = end_time.isoformat() + 'Z'
 
-#         reminder_message = f"Take {med.get('dose')} pills of {med.get('name')} at {start_time.strftime('%H:%M')}"
-#         #reminder_message = f"Take {med['dose']} pills of {med['name']} at {start_time.strftime('%H:%M')}"
+        reminder_message = f"Take {med.get('dose')} pills of {med.get('name')} at {start_time.strftime('%H:%M')}"
+        #reminder_message = f"Take {med['dose']} pills of {med['name']} at {start_time.strftime('%H:%M')}"
 
-#         reminder_time = start_time-timedelta(minutes=10)
+        reminder_time = start_time-timedelta(minutes=10)
 
-#         trigger = CronTrigger(day_of_week=','.join(med.get("days")), hour=reminder_time.strftime('%H'), minute=reminder_time.strftime('%M'))
+        trigger = CronTrigger(day_of_week=','.join(med.get("days")), hour=reminder_time.strftime('%H'), minute=reminder_time.strftime('%M'))
 
-#         scheduler.add_job(send_scheduled_sms(user.get("phone number"), reminder_message), trigger)
-
-
-#         event = {
-#             'summary': f'Take {med.get("dose")} pills of {med.get("name")}',
-#             'description': f'Take {med.get("dose")} pills of {med.get("name")}',
-#             'start': {'dateTime': st, 'timeZone': 'UTC'},
-#             'end': {'dateTime': et, 'timeZone': 'UTC'},
-#             'recurrence': [f'RRULE:FREQ=WEEKLY;BYDAY={",".join(formatted_days)}'],
-#         }
-#         service.events().insert(calendarId="primary", body=event).execute()
-
-#     return jsonify({"success": "Calendar events created successfully"})  
+        scheduler.add_job(send_scheduled_sms(user.get("phone number"), reminder_message), trigger)
 
 
-# # send web and sms notifications based on the calendar events
-# @app.route('/send_reminder', methods=['GET'])
-# def send_web_notification(email, message, scheduled_time):
-#     try:
-#         if datetime.now() == scheduled_time:
-#             Client("").send_message(message, "Medication Reminder")
-#             return jsonify(f"Web notification sent: {message}")
-#     except Exception as e:
-#         return jsonify(f"Error sending web notification: {e}")
+        event = {
+            'summary': f'Take {med.get("dose")} pills of {med.get("name")}',
+            'description': f'Take {med.get("dose")} pills of {med.get("name")}',
+            'start': {'dateTime': st, 'timeZone': 'UTC'},
+            'end': {'dateTime': et, 'timeZone': 'UTC'},
+            'recurrence': [f'RRULE:FREQ=WEEKLY;BYDAY={",".join(formatted_days)}'],
+        }
+        service.events().insert(calendarId="primary", body=event).execute()
 
-# def send_sms_notification(phone_number, message):
-#     try:
-#         # Use the Twilio client to send an SMS
-#         twilio_client.messages.create(
-#             to=phone_number,
-#             from_=TWILIO_PHONE_NUMBER,
-#             body=message
+    return jsonify({"success": "Calendar events created successfully"})  
+
+
+@app.route('/send_reminder', methods=['GET'])
+def send_web_notification(email, message, scheduled_time):
+    try:
+        if datetime.now() == scheduled_time:
+            Client("").send_message(message, "Medication Reminder")
+            return jsonify(f"Web notification sent: {message}")
+    except Exception as e:
+        return jsonify(f"Error sending web notification: {e}")
+
+def send_sms_notification(phone_number, message):
+    try:
+        # Use the Twilio client to send an SMS
+        twilio_client.messages.create(
+            to=phone_number,
+            from_=TWILIO_PHONE_NUMBER,
+            body=message
 
             
 
-#         )
-#         return jsonify("SMS sent to {phone_number}: {message}")
-#     except Exception as e:
-#         return jsonify(f"Error sending SMS: {e}")
+        )
+        return jsonify("SMS sent to {phone_number}: {message}")
+    except Exception as e:
+        return jsonify(f"Error sending SMS: {e}")
 
 
-# ### might not need this v
-# def send_reminders():
-#     if g.user is None:
-#         return jsonify({"error": "User not logged in"})
+def send_reminders():
+    if g.user is None:
+        return jsonify({"error": "User not logged in"})
 
-#     user = users_collection.find_one({"uname": g.user})
+    user = users_collection.find_one({"uname": g.user})
 
-#     if not user:
-#         return redirect("/index?err_msg=email used")
+    if not user:
+        return redirect("/index?err_msg=email used")
 
-#     for medication in user.get("meds", []):
+    for medication in user.get("meds", []):
 
         
-#         dosage_time = 
+        dosage_time = 
 
-#         if dosage_time:
-#             time_difference = dosage_time - datetime.utcnow()
+        if dosage_time:
+            time_difference = dosage_time - datetime.utcnow()
 
-#             if time_difference == timedelta(hours=2):
-#                 reminder_message = f"Don't forget to take your medication: {medication.get('name')}"
+            if time_difference == timedelta(hours=2):
+                reminder_message = f"Don't forget to take your medication: {medication.get('name')}"
 
-#                 send_web_notification(mongo.db.users.find_one({"email": g.user}), reminder_message)
-#                 send_sms_notification(mongo.db.users.find_one({"phone number": g.user}), reminder_message)
+                send_web_notification(mongo.db.users.find_one({"email": g.user}), reminder_message)
+                send_sms_notification(mongo.db.users.find_one({"phone number": g.user}), reminder_message)
 
-#     return jsonify({"success": "Reminders sent successfully"})
+    return jsonify({"success": "Reminders sent successfully"})
 
 
 if __name__ == '__main__':
